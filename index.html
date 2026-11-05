@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payment History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --navy:#16222f;
+  --ink:#111827;
+  --muted:#8b93a1;
+  --muted2:#6b7280;
+  --line:#edeff2;
+  --line2:#e3e6ea;
+  --bg:#fcfcfd;
+  --active:#eef4fa;
+  --accent:#16222f;
+  --green:#15994f;
+  --red:#d93a3a;
+  --sidebar:272px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#fff;font-size:14px;-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+
+.app{display:flex;min-height:100vh}
+
+/* ---------------- Sidebar ---------------- */
+.side{width:var(--sidebar);flex:0 0 var(--sidebar);border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto;background:#fff}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 8px 26px}
+.brand .mark{width:40px;height:40px;border-radius:12px;background:var(--navy);display:grid;place-items:center}
+.brand .mark svg{width:21px;height:21px;fill:#fff}
+.brand .nm{font-size:25px;font-weight:700;letter-spacing:-.6px}
+.nav a{display:flex;align-items:center;gap:13px;padding:11px 12px;border-radius:10px;color:#475063;text-decoration:none;font-size:14.5px;font-weight:500;margin-bottom:2px;position:relative}
+.nav a svg{width:18px;height:18px;stroke:#7b8495;fill:none;stroke-width:1.7}
+.nav a:hover{background:#f6f7f9}
+.nav a.on{background:var(--active);color:var(--navy);font-weight:600}
+.nav a.on svg{stroke:var(--navy)}
+.nav a.on::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--navy)}
+.sec{padding:22px 12px 8px;font-size:13.5px;color:var(--muted);font-weight:500}
+
+/* ---------------- Topbar ---------------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.top{display:flex;align-items:center;gap:14px;padding:16px 26px;border-bottom:1px solid var(--line);background:#fff}
+.sq{width:26px;height:26px;border-radius:6px;border:1.6px solid #c3c9d2;position:relative;cursor:pointer;flex:0 0 26px}
+.sq::after{content:"";position:absolute;left:7px;top:-1.6px;bottom:-1.6px;width:1.6px;background:#c3c9d2}
+.top .lbl{font-size:13px;letter-spacing:.09em;color:var(--muted);font-weight:500}
+.top .bal{font-size:28px;font-weight:600;letter-spacing:-.6px}
+.top .bal [contenteditable]{outline:none}
+.top .spacer{flex:1}
+.bell{width:36px;height:36px;border-radius:50%;border:none;background:transparent;cursor:pointer;display:grid;place-items:center}
+.bell:hover{background:#f3f4f6}
+.bell svg{width:19px;height:19px;stroke:#2b3443;fill:none;stroke-width:1.7}
+.ava{width:34px;height:34px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:600;font-size:14px}
+
+/* ---------------- Content ---------------- */
+.wrap{padding:22px 26px 60px}
+h1{font-size:27px;font-weight:500;color:#5f6775;margin:4px 0 22px;letter-spacing:-.4px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px}
+.panel{background:#fff;border:1px solid var(--line2);border-radius:14px}
+.stat{padding:26px 30px}
+.stat .k{font-size:13.5px;letter-spacing:.06em;color:#5f6775;font-weight:500;margin-bottom:12px}
+.stat .v{font-size:34px;font-weight:600;letter-spacing:-1px}
+.stat .v [contenteditable]{outline:none;border-radius:6px}
+.stat .v [contenteditable]:hover{background:#f3f5f8}
+
+.detail{padding:22px 24px 18px}
+.detail .k{font-size:13.5px;letter-spacing:.06em;color:#5f6775;font-weight:500}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 20px}
+.chip{border:1px solid var(--line2);border-radius:9px;padding:9px 15px;font-size:13.5px;color:#374151;background:#fff;white-space:nowrap}
+.bar .grow{flex:1 1 150px;min-width:120px}
+.search{display:flex;align-items:center;gap:9px;border:1px solid var(--line2);border-radius:9px;padding:0 13px;background:#fff;height:40px}
+.search svg{width:16px;height:16px;stroke:#9aa2ae;fill:none;stroke-width:1.9;flex:0 0 16px}
+.search input{border:none;outline:none;width:100%;background:transparent}
+.search input::placeholder{color:#a7aebb}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1px solid var(--line2);background:#fff;border-radius:9px;cursor:pointer;font-size:13.5px;color:#2b3443;white-space:nowrap}
+.btn:hover{background:#f8f9fb}
+.btn svg{width:15px;height:15px;stroke:#5f6775;fill:none;stroke-width:1.8}
+.btn.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy) inset}
+.btn.dark{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.dark:hover{background:#23344a}
+.btn.dark svg{stroke:#fff}
+.pop{position:relative;display:inline-block}
+.pop-menu{position:absolute;top:46px;left:0;z-index:40;background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:0 12px 34px rgba(16,24,40,.13);padding:10px;min-width:214px;display:none}
+.pop-menu.open{display:block}
+.pop-menu.right{left:auto;right:0}
+.pop-menu label{display:block;font-size:11.5px;color:var(--muted);margin:6px 2px 4px;letter-spacing:.04em}
+.pop-menu select,.pop-menu input{width:100%;height:36px;border:1px solid var(--line2);border-radius:8px;padding:0 10px;outline:none;background:#fff}
+.pop-item{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;cursor:pointer;font-size:13.5px}
+.pop-item:hover{background:#f5f6f8}
+.pop-item.sel{background:var(--active);font-weight:600}
+
+/* ---------------- Table ---------------- */
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:1120px}
+thead th{text-align:left;font-size:13.5px;color:#6b7280;font-weight:500;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th.r{text-align:right}
+tbody td{padding:13px 12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+tbody tr:hover{background:#fafbfc}
+tbody td.r{text-align:right;white-space:nowrap}
+col.c-card{width:168px} col.c-name{width:158px} col.c-date{width:112px} col.c-amt{width:120px} col.c-st{width:124px} col.c-act{width:104px}
+.cardcell{display:flex;align-items:center;gap:10px}
+.cchip{width:26px;height:17px;border-radius:3px;background:linear-gradient(160deg,#2b2b2b,#101010);flex:0 0 26px;position:relative}
+.cchip::after{content:"";position:absolute;left:3px;top:4px;width:7px;height:5px;border-radius:1px;background:#6d6d6d}
+.card-sel{border:none;background:transparent;font-weight:600;cursor:pointer;padding:3px 4px;border-radius:6px;max-width:112px}
+.card-sel:hover{background:#f1f3f6}
+.nm{font-weight:600}
+.tm{display:block;color:#8b93a1;font-size:12px;margin-top:2px}
+#dbstat{font-size:12.5px;color:#5f6775;height:40px;display:inline-flex;align-items:center}
+.amt{font-weight:500}
+.amt.neg{color:var(--ink)}
+.amt.pos{color:var(--green)}
+.amt.zero{color:var(--ink)}
+.bdg{appearance:none;border:1px solid;border-radius:999px;padding:5px 26px 5px 11px;font-size:12.5px;font-weight:500;cursor:pointer;outline:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 7px center;background-size:12px}
+.bdg.success{color:#15803d;border-color:#c3e7d1;background-color:#f2fbf5}
+.bdg.pending{color:#a96700;border-color:#f0dcae;background-color:#fff9ec}
+.bdg.failed{color:#c92a2a;border-color:#f1c4c4;background-color:#fdf2f2}
+.bdg.refunded{color:#1d4ed8;border-color:#c9d8fb;background-color:#f2f6fe}
+[contenteditable]{outline:none;border-radius:6px;padding:2px 5px;margin:-2px -5px;display:inline-block;min-width:14px}
+[contenteditable]:hover{background:#f1f3f6}
+[contenteditable]:focus{background:#fff;box-shadow:0 0 0 2px var(--navy)}
+.ghead td{background:#f7f8fa;font-weight:600;font-size:12.5px;color:#475063;padding:9px 12px;letter-spacing:.02em}
+.acts{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:opacity .12s}
+tr:hover .acts{opacity:1}
+.mini{width:28px;height:28px;border-radius:7px;border:none;background:transparent;cursor:pointer;display:grid;place-items:center}
+.mini:hover{background:#eef0f4}
+.mini svg{width:15px;height:15px;stroke:#5f6775;fill:none;stroke-width:1.8}
+.mini.del:hover svg{stroke:var(--red)}
+.empty{padding:46px;text-align:center;color:var(--muted)}
+
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:18px 4px 4px;font-size:13.5px;color:#475063;flex-wrap:wrap}
+.pager select{height:36px;border:1px solid var(--line2);border-radius:9px;padding:0 10px;background:#fff;outline:none}
+.pbtn{width:36px;height:36px;border:1px solid var(--line2);background:#fff;border-radius:9px;cursor:pointer;display:grid;place-items:center;color:#475063}
+.pbtn:hover:not(:disabled){background:#f6f7f9}
+.pbtn:disabled{opacity:.4;cursor:default}
+
+/* ---------------- Modal ---------------- */
+.ov{position:fixed;inset:0;background:rgba(17,24,39,.42);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+.ov.open{display:flex}
+.modal{background:#fff;border-radius:16px;width:560px;max-width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(16,24,40,.26)}
+.modal h3{margin:0;font-size:17px;font-weight:600}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid var(--line)}
+.mbody{padding:20px 22px}
+.mfoot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--line)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12.5px;color:var(--muted2);margin-bottom:6px;font-weight:500}
+.fld input,.fld select,.fld textarea{width:100%;height:42px;border:1px solid var(--line2);border-radius:10px;padding:0 12px;outline:none;background:#fff}
+.fld textarea{height:72px;padding:10px 12px;resize:vertical;line-height:1.45}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(22,34,47,.09)}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.cardlist{border:1px solid var(--line2);border-radius:10px;overflow:hidden;margin-top:6px}
+.cardrow{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--line)}
+.cardrow:last-child{border-bottom:none}
+.cardrow .l4{font-weight:600}
+.cardrow .nmi{flex:1;border:none;outline:none;background:transparent;font-size:13.5px}
+.cardrow .nmi:focus{background:#f5f6f8;border-radius:6px;padding:4px 6px}
+.x{border:none;background:transparent;cursor:pointer;color:#9aa2ae;font-size:17px;line-height:1;padding:4px 6px;border-radius:6px}
+.x:hover{background:#fdecec;color:var(--red)}
+.big{height:48px;font-size:18px;letter-spacing:.22em;font-weight:600;text-align:center}
+
+/* floating */
+.float{position:fixed;right:20px;bottom:120px;display:flex;flex-direction:column;gap:13px;z-index:50}
+.float a{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;box-shadow:0 5px 16px rgba(16,24,40,.2);color:#fff;text-decoration:none}
+.float .m{background:#e8453c} .float .t{background:#2ea2e0} .float .x2{background:#111}
+.float svg{width:21px;height:21px;fill:#fff}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(18px);opacity:0;background:var(--navy);color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;z-index:99;transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- statement sheet (A4 portrait) ---------- */
+#sheet{position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#111827}
+.pg{width:794px;height:1123px;padding:44px 46px 38px;box-sizing:border-box;position:relative;overflow:hidden;background:#fff;page-break-after:always}
+.pg:last-child{page-break-after:auto}
+.pg *{box-sizing:border-box}
+.sh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #16222f;padding-bottom:13px}
+.sh-b{display:flex;gap:10px;align-items:center}
+.sh-m{width:34px;height:34px;border-radius:9px;background:#16222f;display:grid;place-items:center}
+.sh-m svg{width:18px;height:18px;fill:#fff}
+.sh-n{font-size:19px;font-weight:700;letter-spacing:-.4px;line-height:1}
+.sh-s{font-size:9px;color:#6b7280;margin-top:3px;letter-spacing:.03em}
+.sh-t{text-align:right}
+.sh-t .t1{font-size:14.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.sh-t .t2{font-size:9.5px;color:#6b7280;margin-top:3px}
+.inf{display:grid;grid-template-columns:1fr 1fr;gap:3px 26px;margin:15px 0 0;font-size:10px}
+.inf div{display:flex;gap:6px;padding:3px 0;border-bottom:1px dotted #e6e9ee}
+.inf b{color:#6b7280;font-weight:500;min-width:102px}
+.inf span{font-weight:600}
+.sum{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#dfe4ec;border:1px solid #dfe4ec;border-radius:7px;overflow:hidden;margin:15px 0 13px}
+.sum div{background:#f7f9fc;padding:9px 10px}
+.sum .l{font-size:8.5px;color:#6b7280;letter-spacing:.05em;text-transform:uppercase}
+.sum .v{font-size:12.5px;font-weight:700;margin-top:3px;white-space:nowrap}
+.sec-t{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#16222f;margin:0 0 6px}
+table.cd,table.tx{width:100%;min-width:0;border-collapse:collapse}
+#sheet table{min-width:0}
+#sheet thead th{white-space:normal}
+#sheet tbody tr:hover td{background:inherit}
+#sheet table.tx tbody tr:nth-child(even) td{background:#fafbfd}
+table.cd{margin-bottom:14px;font-size:9.5px}
+table.cd th{background:#eef2f7;text-align:left;padding:6px 8px;border:1px solid #dfe4ec;font-weight:600;color:#38445a}
+table.cd td{padding:6px 8px;border:1px solid #e8ebf0;font-size:9.5px;vertical-align:middle;background:#fff}
+table.tx{font-size:9px;table-layout:fixed}
+table.tx th{background:#16222f;color:#fff;text-align:left;padding:7px 6px;font-weight:600;font-size:8.5px;letter-spacing:.03em;text-transform:uppercase}
+table.tx td{padding:6px;border-bottom:1px solid #e8ebf0;vertical-align:top;line-height:1.35;word-wrap:break-word;font-size:9px}
+table.tx td.nw{white-space:nowrap}
+table.tx td.cd4{font-size:8px;line-height:1.25}
+
+.r{text-align:right} .c{text-align:center}
+.mono{font-variant-numeric:tabular-nums}
+.d2{color:#6b7280;font-size:8px;margin-top:1px}
+.dr{color:#c92a2a;font-weight:600} .cr{color:#15803d;font-weight:600}
+.tag{display:inline-block;font-size:7.5px;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:1px}
+.tag.pending{background:#fff4de;color:#a96700} .tag.failed{background:#fde9e9;color:#c92a2a} .tag.refunded{background:#e9f0fe;color:#1d4ed8}
+.tot td{border-top:1.5px solid #16222f;border-bottom:1.5px solid #16222f;font-weight:700;background:#f2f5f9;padding:8px 6px;font-size:9.5px}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:26px;font-size:9px;color:#38445a}
+.sign .bx{text-align:center}
+.sign .ln{margin-top:52px;border-top:1px solid #9aa2ae;padding-top:4px;color:#6b7280}
+.note{margin-top:16px;font-size:8.5px;color:#6b7280;line-height:1.5;border-left:2px solid #dfe4ec;padding-left:9px}
+.ft{position:absolute;left:46px;right:46px;bottom:20px;display:flex;justify-content:space-between;font-size:8px;color:#9aa2ae;border-top:1px solid #e8ebf0;padding-top:7px}
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{background:#fff;margin:0}
+  .app,.float,.toast,.ov{display:none!important}
+  #sheet{position:static;left:0;top:0;width:794px}
+  .pg{overflow:visible}
+}
+@media (max-width:1080px){.stats{grid-template-columns:1fr}}
+@media (max-width:860px){.side{display:none} .wrap{padding:16px 14px 60px} .float{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="side">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24"><path d="M3 4h18L9 20H3l7-9H3z"/></svg></div>
+      <div class="nm">LoomPay</div>
+    </div>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1z"/></svg>Dashboard</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h12a2 2 0 012 2v1h2v8h-2v1a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><circle cx="17" cy="12" r="1.2"/></svg>My Wallets</a>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M14 10h5M14 14h5M4 16c1-2 6-2 7 0"/></svg>Card Management</a>
+      <a href="#" class="on"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg>Payment History</a>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="5" rx="1"/><path d="M5 13v8h14v-8M12 8v13M12 8S10 3 7.5 4.5 10 8 12 8zM12 8s2-5 4.5-3.5S14 8 12 8z"/></svg>Your Rewards</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.1A1.6 1.6 0 007.5 19l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 003 13.6H3a2 2 0 110-4h.1A1.6 1.6 0 004.8 7l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 002.7-1.1V3a2 2 0 114 0v.1A1.6 1.6 0 0016.5 5l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001.1 2.7H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg>Settings</a>
+    </nav>
+    <div class="sec">Referral</div>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 16V8h3.5a2.5 2.5 0 010 5H9"/></svg>Referral Code</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <!-- Topbar -->
+    <div class="top">
+      <div class="sq"></div>
+      <div class="lbl">TOTAL BALANCE</div>
+      <div class="bal">$<span contenteditable id="balance">187.14</span></div>
+      <div class="spacer"></div>
+      <button class="bell"><svg viewBox="0 0 24 24"><path d="M6 10a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20h4"/></svg></button>
+      <div class="ava" contenteditable>P</div>
+    </div>
+
+    <div class="wrap">
+      <h1>Payment History</h1>
+
+      <div class="stats">
+        <div class="panel stat"><div class="k">CARD SPENT</div><div class="v">$<span id="spent">139.57</span></div></div>
+        <div class="panel stat"><div class="k">CASHBACK</div><div class="v">$<span contenteditable id="cashback">10</span></div></div>
+      </div>
+
+      <div class="panel detail">
+        <div class="k">DETAIL</div>
+
+        <!-- Toolbar -->
+        <div class="bar">
+          <div class="chip" id="chip-total">Total: $139.57 / 14 payments</div>
+          <div class="grow"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.4-3.4"/></svg><input id="q" placeholder="Search..."></div></div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-all"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg><span id="lbl-all">All</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="pop-menu" id="p-all">
+              <div class="pop-item sel" data-type="all">All</div>
+              <div class="pop-item" data-type="spent">Spent only</div>
+              <div class="pop-item" data-type="free">$0 only</div>
+              <div class="pop-item" data-type="refund">Refund (+)</div>
+            </div>
+          </div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-group">Group <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></button>
+            <div class="pop-menu" id="p-group">
+              <div class="pop-item sel" data-group="none">Không nhóm</div>
+              <div class="pop-item" data-group="card">Theo số thẻ</div>
+              <div class="pop-item" data-group="name">Theo tên thẻ</div>
+              <div class="pop-item" data-group="merchant">Theo merchant</div>
+            </div>
+          </div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-num">Card Number <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></button>
+            <div class="pop-menu" id="p-num"></div>
+          </div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-name">Card Name <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></button>
+            <div class="pop-menu" id="p-name"></div>
+          </div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-stat">Status <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></button>
+            <div class="pop-menu" id="p-stat"></div>
+          </div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-date"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Date</button>
+            <div class="pop-menu" id="p-date">
+              <label>Từ ngày</label><input type="date" id="d-from">
+              <label>Đến ngày</label><input type="date" id="d-to">
+              <div style="display:flex;gap:8px;margin-top:11px">
+                <button class="btn" style="flex:1" id="d-clear">Xoá lọc</button>
+                <button class="btn dark" style="flex:1" id="d-apply">Áp dụng</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-amt"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 5-7 4 4"/></svg>Amount</button>
+            <div class="pop-menu" id="p-amt">
+              <div class="pop-item sel" data-sort="manual">Thứ tự thủ công</div>
+              <div class="pop-item" data-sort="desc">Số tiền: lớn → nhỏ</div>
+              <div class="pop-item" data-sort="asc">Số tiền: nhỏ → lớn</div>
+              <div class="pop-item" data-sort="date-desc">Ngày: mới → cũ</div>
+              <div class="pop-item" data-sort="date-asc">Ngày: cũ → mới</div>
+            </div>
+          </div>
+
+          <div class="pop">
+            <button class="btn" data-pop="p-exp"><svg viewBox="0 0 24 24"><path d="M5 3h9l5 5v13H5z"/><path d="M12 11v6m0 0l-2.5-2.5M12 17l2.5-2.5"/></svg>Export</button>
+            <div class="pop-menu right" id="p-exp">
+              <div class="pop-item" data-exp="stmt">Sao kê PDF…</div>
+              <div class="pop-item" data-exp="csv">Tải CSV</div>
+            </div>
+          </div>
+
+          <span class="chip" id="dbstat">data.json</span>
+          <button class="btn" id="btn-open"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Mở JSON</button>
+          <button class="btn" id="btn-savejson"><svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg>Lưu JSON</button>
+          <input type="file" id="file-json" accept=".json,application/json" hidden>
+          <button class="btn" id="btn-cards"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Thêm thẻ</button>
+          <button class="btn dark" id="btn-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Chèn giao dịch</button>
+        </div>
+
+        <!-- Table -->
+        <div class="tscroll">
+          <table>
+            <colgroup><col class="c-card"><col class="c-name"><col><col><col class="c-date"><col class="c-amt"><col class="c-st"><col class="c-act"></colgroup>
+            <thead><tr>
+              <th>Card</th><th>Name</th><th>Description</th><th>Merchant</th><th>Date</th>
+              <th class="r" id="th-amt" style="cursor:pointer">Amount ⇅</th><th>Status</th><th class="r">Action</th>
+            </tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <span id="range"></span>
+          <div class="spacer" style="flex:1"></div>
+          <span>Rows per page</span>
+          <select id="per"><option>10</option><option>25</option><option>50</option><option value="9999">All</option></select>
+          <span>Page <b id="pnow">1</b> of <b id="pall">1</b></span>
+          <button class="pbtn" id="pf">«</button>
+          <button class="pbtn" id="pp">‹</button>
+          <button class="pbtn" id="pn">›</button>
+          <button class="pbtn" id="pl">»</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- floating -->
+<div class="float">
+  <a class="m" href="#" title="Email"><svg viewBox="0 0 24 24"><path d="M2 5h20v14H2z" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M2.5 6l9.5 7 9.5-7" fill="none" stroke="#fff" stroke-width="1.8"/></svg></a>
+  <a class="t" href="#" title="Telegram"><svg viewBox="0 0 24 24"><path d="M21.6 4.3L2.9 11.4c-.9.3-.9 1.6 0 1.9l4.6 1.5 1.8 5.4c.2.7 1.1.9 1.6.3l2.5-2.7 4.7 3.5c.6.4 1.4.1 1.6-.6l3.1-14.6c.2-.9-.7-1.6-1.2-1.3z"/></svg></a>
+  <a class="x2" href="#" title="X"><svg viewBox="0 0 24 24"><path d="M17.5 3h3l-6.6 7.6L22 21h-5.9l-4.6-6-5.3 6H3.2l7.1-8.1L2.5 3h6l4.2 5.5zm-1 16h1.7L8 4.8H6.2z"/></svg></a>
+</div>
+
+<!-- Modal: transaction -->
+<div class="ov" id="ov-tx">
+  <div class="modal">
+    <div class="mhead"><h3 id="tx-title">Chèn giao dịch</h3><button class="x" data-close>✕</button></div>
+    <div class="mbody">
+      <div class="grid2">
+        <div class="fld"><label>Thẻ</label><select id="tx-card"></select></div>
+        <div class="fld"><label>Tên thẻ hiển thị</label><input id="tx-name" placeholder="MCV Global"></div>
+      </div>
+      <div class="fld"><label>Description</label><textarea id="tx-desc" placeholder="Purchase from ANTHROPIC, ANTHROPIC.COM, USA"></textarea></div>
+      <div class="fld"><label>Merchant</label><input id="tx-merch" placeholder="ANTHROPIC, ANTHROPIC.COM, USA"></div>
+      <div class="grid2">
+        <div class="fld"><label>Ngày (dd/mm/yyyy)</label><input id="tx-date" placeholder="05/11/2026"></div>
+        <div class="fld"><label>Số tiền (âm = chi tiêu)</label><input id="tx-amt" placeholder="-22.22"></div>
+      </div>
+      <div class="fld"><label>Status</label><select id="tx-status">
+        <option value="success">Success</option><option value="pending">Pending</option>
+        <option value="failed">Failed</option><option value="refunded">Refunded</option></select></div>
+      <div class="fld"><label>Vị trí chèn</label><select id="tx-pos"></select>
+        <div class="hint">Chọn đúng dòng muốn chèn vào giữa danh sách bên dưới.</div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn" data-close>Huỷ</button><button class="btn dark" id="tx-save">Lưu giao dịch</button></div>
+  </div>
+</div>
+
+<!-- Modal: cards -->
+<div class="ov" id="ov-card">
+  <div class="modal" style="width:480px">
+    <div class="mhead"><h3>Thẻ của bạn</h3><button class="x" data-close>✕</button></div>
+    <div class="mbody">
+      <div class="grid2">
+        <div class="fld"><label>4 số cuối</label><input id="cd-l4" class="big" maxlength="4" inputmode="numeric" placeholder="0000"></div>
+        <div class="fld"><label>Tên thẻ</label><input id="cd-name" placeholder="MCV Global" style="height:48px"></div>
+      </div>
+      <button class="btn dark" id="cd-add" style="width:100%;height:42px;justify-content:center">+ Thêm thẻ</button>
+      <div class="hint">Chỉ cần 4 số cuối — hệ thống hiển thị dạng ****0000.</div>
+      <div class="cardlist" id="cd-list"></div>
+    </div>
+    <div class="mfoot"><button class="btn dark" data-close>Xong</button></div>
+  </div>
+</div>
+
+<!-- Modal: statement options -->
+<div class="ov" id="ov-stmt">
+  <div class="modal">
+    <div class="mhead"><h3>Xuất sao kê</h3><button class="x" data-close>✕</button></div>
+    <div class="mbody">
+      <div class="grid2">
+        <div class="fld"><label>Chủ tài khoản</label><input id="s-holder" placeholder="CÔNG TY ABC"></div>
+        <div class="fld"><label>Số tài khoản / thẻ</label><input id="s-account" placeholder="**** 8461"></div>
+      </div>
+      <div class="fld"><label>Địa chỉ / thông tin thêm</label><input id="s-address" placeholder="Địa chỉ, mã số thuế…"></div>
+      <div class="grid2">
+        <div class="fld"><label>Từ ngày (dd/mm/yyyy)</label><input id="s-from"></div>
+        <div class="fld"><label>Đến ngày (dd/mm/yyyy)</label><input id="s-to"></div>
+      </div>
+      <div class="grid2">
+        <div class="fld"><label>Số dư đầu kỳ</label><input id="s-open" placeholder="0.00"></div>
+        <div class="fld"><label>Loại tiền</label><input id="s-cur" placeholder="USD"></div>
+      </div>
+      <div class="fld"><label>Ghi chú cuối sao kê</label><input id="s-note" placeholder="This statement is generated electronically…"></div>
+      <div class="hint" id="s-count"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" data-close>Huỷ</button>
+      <button class="btn" id="s-print">In</button>
+      <button class="btn dark" id="s-pdf">Tải PDF</button>
+    </div>
+  </div>
+</div>
+
+<div id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const usd = n => '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtAmt = n => n === 0 ? '$0' : (n < 0 ? '-' + usd(n) : '+' + usd(n));
+const parseAmt = s => {
+  const t = String(s).replace(/[^0-9.\-]/g,'');
+  const v = parseFloat(t);
+  return isNaN(v) ? 0 : Math.round(v*100)/100;
+};
+const uid = () => 'x' + Math.random().toString(36).slice(2,9);
+const toISO = d => { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(d).trim()); return m ? `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` : ''; };
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
+
+const STATUS = [['success','Success'],['pending','Pending'],['failed','Failed'],['refunded','Refunded']];
+const ST_COLOR = {success:'#15803d',pending:'#a96700',failed:'#c92a2a',refunded:'#1d4ed8'};
+const stLabel = v => (STATUS.find(x=>x[0]===v)||STATUS[0])[1];
+
+/* ---------- data ---------- */
+const DB_FILE = 'data.json';
+let S = { meta:{}, balance:'0.00', cashback:'0', cards:[], txns:[] };
+let fileHandle = null, loading = true, dirty = false, saveTimer = null, lastSaved = '';
+
+function normalize(d){
+  d = d || {};
+  return {
+    meta: d.meta || {},
+    statement: d.statement || {},
+    balance: d.balance != null ? String(d.balance) : '0.00',
+    cashback: d.cashback != null ? String(d.cashback) : '0',
+    cards: (Array.isArray(d.cards) ? d.cards : []).map(c => ({ id:c.id||uid(), last4:String(c.last4||''), name:c.name||'' })),
+    txns: (Array.isArray(d.txns) ? d.txns : []).map(t => Object.assign({}, t, {
+      id:t.id||uid(), name:t.name||'', desc:t.desc||'', merchant:t.merchant||'',
+      date:t.date||'', time:t.time||'', amount:Number(t.amount)||0, status:t.status||'success'
+    }))
+  };
+}
+const snap = () => JSON.stringify({ b:S.balance, c:S.cashback, st:S.statement, cards:S.cards, txns:S.txns });
+function dbText(){
+  const o = Object.assign({}, S);
+  const z = new Date(), q = x => String(x).padStart(2,'0');
+  o.meta = Object.assign({}, S.meta, {
+    updated: `${z.getFullYear()}-${q(z.getMonth()+1)}-${q(z.getDate())} ${q(z.getHours())}:${q(z.getMinutes())}`
+  });
+  return JSON.stringify(o, null, 2);
+}
+function setStat(txt, warn){
+  const el = $('#dbstat');
+  el.textContent = txt;
+  el.style.color = warn ? '#c92a2a' : '';
+  el.style.borderColor = warn ? '#f1c4c4' : '';
+}
+function save(){
+  if (loading) return;
+  if (snap() === lastSaved) return;
+  dirty = true;
+  setStat(fileHandle ? 'data.json · đang lưu…' : 'data.json · CHƯA LƯU', !fileHandle);
+  clearTimeout(saveTimer); saveTimer = setTimeout(flush, 400);
+}
+async function flush(){
+  if (!fileHandle) return;
+  const s0 = snap();
+  try {
+    const w = await fileHandle.createWritable();
+    await w.write(dbText()); await w.close();
+    lastSaved = s0; dirty = false; setStat('data.json · đã lưu');
+  } catch(e){ setStat('data.json · lỗi ghi file', true); }
+}
+function applyDB(d){
+  S = normalize(d);
+  $('#balance').textContent = S.balance;
+  $('#cashback').textContent = S.cashback;
+  loading = false; lastSaved = snap(); render();
+}
+async function boot(){
+  try {
+    const r = await fetch(DB_FILE + '?t=' + Date.now());
+    if (!r.ok) throw new Error(r.status);
+    applyDB(await r.json());
+    setStat('data.json · chỉ đọc');
+    $('#dbstat').title = 'Đã nạp data.json. Bấm "Mở JSON" và chọn đúng file này để mọi thay đổi tự ghi vào file.';
+  } catch(e){
+    applyDB(null);
+    setStat('Chưa đọc được data.json', true);
+    $('#dbstat').title = 'Mở trang qua http://localhost, hoặc bấm "Mở JSON" để chọn file data.json.';
+  }
+}
+
+let F = { q:'', type:'all', group:'none', cards:new Set(), names:new Set(), stats:new Set(), from:'', to:'', sort:'manual' };
+let page = 1, per = 10;
+
+const cardOf = id => S.cards.find(c => c.id === id) || {last4:'',name:'—'};
+const cLab = c => c.last4 ? '****' + c.last4 : (c.name || '—');
+
+/* ---------- filtering ---------- */
+function filtered(){
+  let r = S.txns.filter(t => {
+    const c = cardOf(t.card);
+    if (F.q){
+      const hay = (t.desc+' '+t.merchant+' '+t.name+' '+c.last4).toLowerCase();
+      if (!hay.includes(F.q.toLowerCase())) return false;
+    }
+    if (F.type === 'spent'  && !(t.amount < 0)) return false;
+    if (F.type === 'free'   && t.amount !== 0)  return false;
+    if (F.type === 'refund' && !(t.amount > 0)) return false;
+    if (F.cards.size && !F.cards.has(t.card)) return false;
+    if (F.names.size && !F.names.has(t.name)) return false;
+    if (F.stats.size && !F.stats.has(t.status || 'success')) return false;
+    if (F.from || F.to){
+      const d = toISO(t.date);
+      if (!d) return false;
+      if (F.from && d < F.from) return false;
+      if (F.to && d > F.to) return false;
+    }
+    return true;
+  });
+  const key = t => F.group==='card' ? cardOf(t.card).last4 : F.group==='name' ? t.name : F.group==='merchant' ? t.merchant : '';
+  if (F.sort === 'desc') r.sort((a,b)=>Math.abs(b.amount)-Math.abs(a.amount));
+  if (F.sort === 'asc')  r.sort((a,b)=>Math.abs(a.amount)-Math.abs(b.amount));
+  if (F.sort === 'date-desc') r.sort((a,b)=>toISO(b.date).localeCompare(toISO(a.date)));
+  if (F.sort === 'date-asc')  r.sort((a,b)=>toISO(a.date).localeCompare(toISO(b.date)));
+  if (F.group !== 'none') r.sort((a,b)=>key(a).localeCompare(key(b)));
+  return r;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const list = filtered();
+  const spentAll = S.txns.reduce((s,t)=> t.amount<0 ? s-t.amount : s, 0);
+  const spentSel = list.reduce((s,t)=> t.amount<0 ? s-t.amount : s, 0);
+  $('#spent').textContent = spentAll.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('#chip-total').textContent = `Total: ${usd(spentSel)} / ${list.length} payments`;
+
+  const pc = Math.max(1, Math.ceil(list.length / per));
+  page = Math.min(page, pc);
+  const start = (page-1)*per, slice = list.slice(start, start+per);
+  $('#pnow').textContent = page; $('#pall').textContent = pc;
+  $('#range').textContent = list.length ? `Hiển thị ${start+1}-${Math.min(start+per,list.length)} / ${list.length}` : '';
+  $('#pf').disabled = $('#pp').disabled = page<=1;
+  $('#pn').disabled = $('#pl').disabled = page>=pc;
+
+  const opts = t => S.cards.map(c=>`<option value="${c.id}" ${c.id===t.card?'selected':''}>${esc(cLab(c))}</option>`).join('');
+  const stOpts = t => STATUS.map(([v,l])=>`<option value="${v}" ${v===(t.status||'success')?'selected':''}>${l}</option>`).join('');
+  const gk = t => F.group==='card' ? '****'+cardOf(t.card).last4 : F.group==='name' ? t.name : F.group==='merchant' ? t.merchant : '';
+
+  let html = '', last = null;
+  slice.forEach(t => {
+    if (F.group !== 'none' && gk(t) !== last){
+      last = gk(t);
+      const sub = list.filter(x => gk(x) === last).reduce((s,x)=> x.amount<0 ? s-x.amount : s, 0);
+      html += `<tr class="ghead"><td colspan="8">${esc(last)} — ${usd(sub)}</td></tr>`;
+    }
+    const cls = t.amount>0 ? 'pos' : t.amount===0 ? 'zero' : 'neg';
+    html += `<tr data-id="${t.id}">
+      <td><div class="cardcell"><span class="cchip"></span><select class="card-sel" data-f="card">${opts(t)}</select></div></td>
+      <td><span class="nm" contenteditable data-f="name">${esc(t.name)}</span></td>
+      <td><span contenteditable data-f="desc">${esc(t.desc)}</span></td>
+      <td><span contenteditable data-f="merchant">${esc(t.merchant)}</span></td>
+      <td><span contenteditable data-f="date">${esc(t.date)}</span><span class="tm" contenteditable data-f="time">${esc(t.time||'')}</span></td>
+      <td class="r"><span class="amt ${cls}" contenteditable data-f="amount">${fmtAmt(t.amount)}</span></td>
+      <td><select class="bdg ${t.status||'success'}" data-f="status">${stOpts(t)}</select></td>
+      <td class="r"><div class="acts">
+        <button class="mini" data-act="ins" title="Chèn giao dịch ngay dưới"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="mini" data-act="dup" title="Nhân bản"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg></button>
+        <button class="mini del" data-act="del" title="Xoá"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>
+      </div></td>
+    </tr>`;
+  });
+  $('#tbody').innerHTML = html || `<tr><td colspan="8" class="empty">Không có giao dịch nào khớp bộ lọc.</td></tr>`;
+  buildFilterMenus();
+  save();
+}
+
+function buildFilterMenus(){
+  $('#p-num').innerHTML = S.cards.map(c =>
+    `<div class="pop-item ${F.cards.has(c.id)?'sel':''}" data-card="${c.id}">${esc(cLab(c))}</div>`).join('')
+    + `<div class="pop-item" data-card="__all">Tất cả thẻ</div>`;
+  const names = [...new Set(S.txns.map(t=>t.name).filter(Boolean))];
+  $('#p-name').innerHTML = names.map(n =>
+    `<div class="pop-item ${F.names.has(n)?'sel':''}" data-name="${esc(n)}">${esc(n)}</div>`).join('')
+    + `<div class="pop-item" data-name="__all">Tất cả tên</div>`;
+  $('#p-stat').innerHTML = STATUS.map(([v,l]) =>
+    `<div class="pop-item ${F.stats.has(v)?'sel':''}" data-stat="${v}"><span class="bdg ${v}" style="pointer-events:none;background-image:none;padding:3px 10px">${l}</span></div>`).join('')
+    + `<div class="pop-item" data-stat="__all">Tất cả trạng thái</div>`;
+}
+
+/* ---------- inline editing ---------- */
+$('#tbody').addEventListener('focusout', e => {
+  const el = e.target.closest('[data-f]'); if (!el || el.tagName === 'SELECT') return;
+  const t = S.txns.find(x => x.id === el.closest('tr').dataset.id); if (!t) return;
+  const f = el.dataset.f, v = el.textContent.trim();
+  if (f === 'amount'){ t.amount = parseAmt(v); render(); }
+  else { t[f] = v; save(); if (f === 'name') buildFilterMenus(); }
+});
+$('#tbody').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.closest('[data-f]')){ e.preventDefault(); e.target.blur(); }
+});
+$('#tbody').addEventListener('change', e => {
+  const st = e.target.closest('select[data-f="status"]');
+  if (st){
+    const t = S.txns.find(x => x.id === st.closest('tr').dataset.id);
+    t.status = st.value; st.className = 'bdg ' + st.value; save();
+    if (F.stats.size) render();
+    return;
+  }
+  const sel = e.target.closest('select[data-f="card"]'); if (!sel) return;
+  const tr = sel.closest('tr'), t = S.txns.find(x => x.id === tr.dataset.id);
+  const old = cardOf(t.card);
+  t.card = sel.value;
+  if (t.name === old.name) t.name = cardOf(t.card).name;   // theo tên thẻ mới nếu đang dùng tên cũ
+  render();
+});
+$('#tbody').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const id = b.closest('tr').dataset.id, i = S.txns.findIndex(x => x.id === id);
+  const act = b.dataset.act;
+  if (act === 'del'){ S.txns.splice(i,1); render(); toast('Đã xoá giao dịch'); }
+  if (act === 'dup'){ S.txns.splice(i+1, 0, {...S.txns[i], id:uid()}); render(); toast('Đã nhân bản'); }
+  if (act === 'ins'){ openTx(i+1); }
+});
+
+/* ---------- popovers ---------- */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-pop]');
+  document.querySelectorAll('.pop-menu').forEach(m => {
+    if (btn && m.id === btn.dataset.pop) m.classList.toggle('open');
+    else if (!e.target.closest('.pop-menu')) m.classList.remove('open');
+  });
+});
+$('#p-all').addEventListener('click', e => {
+  const it = e.target.closest('[data-type]'); if (!it) return;
+  F.type = it.dataset.type; page = 1;
+  $('#lbl-all').textContent = it.textContent;
+  $('#p-all').querySelectorAll('.pop-item').forEach(x=>x.classList.toggle('sel', x===it));
+  render();
+});
+$('#p-group').addEventListener('click', e => {
+  const it = e.target.closest('[data-group]'); if (!it) return;
+  F.group = it.dataset.group; page = 1;
+  $('#p-group').querySelectorAll('.pop-item').forEach(x=>x.classList.toggle('sel', x===it));
+  render();
+});
+$('#p-amt').addEventListener('click', e => {
+  const it = e.target.closest('[data-sort]'); if (!it) return;
+  F.sort = it.dataset.sort; page = 1;
+  $('#p-amt').querySelectorAll('.pop-item').forEach(x=>x.classList.toggle('sel', x===it));
+  render();
+});
+$('#p-num').addEventListener('click', e => {
+  const it = e.target.closest('[data-card]'); if (!it) return;
+  const v = it.dataset.card;
+  if (v === '__all') F.cards.clear();
+  else F.cards.has(v) ? F.cards.delete(v) : F.cards.add(v);
+  page = 1; render();
+});
+$('#p-name').addEventListener('click', e => {
+  const it = e.target.closest('[data-name]'); if (!it) return;
+  const v = it.dataset.name;
+  if (v === '__all') F.names.clear();
+  else F.names.has(v) ? F.names.delete(v) : F.names.add(v);
+  page = 1; render();
+});
+$('#p-stat').addEventListener('click', e => {
+  const it = e.target.closest('[data-stat]'); if (!it) return;
+  const v = it.dataset.stat;
+  if (v === '__all') F.stats.clear();
+  else F.stats.has(v) ? F.stats.delete(v) : F.stats.add(v);
+  page = 1; render();
+});
+$('#d-apply').addEventListener('click', () => { F.from = $('#d-from').value; F.to = $('#d-to').value; page = 1; render(); $('#p-date').classList.remove('open'); });
+$('#d-clear').addEventListener('click', () => { F.from = F.to = ''; $('#d-from').value = $('#d-to').value = ''; page = 1; render(); });
+$('#q').addEventListener('input', e => { F.q = e.target.value; page = 1; render(); });
+$('#th-amt').addEventListener('click', () => { F.sort = F.sort === 'desc' ? 'asc' : 'desc'; render(); });
+
+/* ---------- pagination ---------- */
+$('#per').addEventListener('change', e => { per = +e.target.value; page = 1; render(); });
+$('#pf').onclick = () => { page = 1; render(); };
+$('#pp').onclick = () => { page--; render(); };
+$('#pn').onclick = () => { page++; render(); };
+$('#pl').onclick = () => { page = 1e9; render(); };
+
+/* ---------- balance / cashback ---------- */
+['balance','cashback'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('focusout', () => { S[id] = el.textContent.trim(); save(); });
+  el.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); el.blur(); } });
+});
+
+/* ---------- modal: transaction ---------- */
+let insertAt = null;
+function openTx(pos){
+  insertAt = pos;
+  $('#tx-card').innerHTML = S.cards.map(c=>`<option value="${c.id}">${esc(cLab(c))} — ${esc(c.name)}</option>`).join('');
+  $('#tx-name').value = S.cards[0] ? S.cards[0].name : '';
+  $('#tx-desc').value = ''; $('#tx-merch').value = ''; $('#tx-amt').value = ''; $('#tx-status').value = 'success';
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  $('#tx-date').value = `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
+  $('#tx-pos').innerHTML =
+    `<option value="0">Đầu danh sách</option>` +
+    S.txns.map((t,i)=>`<option value="${i+1}">Sau dòng ${i+1} — ${esc((t.desc||'').slice(0,46))}</option>`).join('') ;
+  $('#tx-pos').value = String(pos == null ? S.txns.length : pos);
+  $('#ov-tx').classList.add('open');
+  setTimeout(()=>$('#tx-desc').focus(), 60);
+}
+$('#tx-card').addEventListener('change', e => { const c = cardOf(e.target.value); $('#tx-name').value = c.name; });
+$('#btn-add').addEventListener('click', () => openTx(null));
+$('#tx-save').addEventListener('click', () => {
+  if (!S.cards.length){ toast('Hãy thêm thẻ trước'); return; }
+  const t = {
+    id:uid(), card:$('#tx-card').value, name:$('#tx-name').value.trim(),
+    desc:$('#tx-desc').value.trim(), merchant:$('#tx-merch').value.trim() || $('#tx-desc').value.trim(),
+    date:$('#tx-date').value.trim(), amount:parseAmt($('#tx-amt').value), status:$('#tx-status').value
+  };
+  const at = Math.max(0, Math.min(S.txns.length, parseInt($('#tx-pos').value,10) || 0));
+  S.txns.splice(at, 0, t);
+  $('#ov-tx').classList.remove('open');
+  page = Math.ceil((at+1)/per) || 1;
+  render(); toast('Đã chèn giao dịch ở vị trí ' + (at+1));
+});
+
+/* ---------- modal: cards ---------- */
+function drawCards(){
+  $('#cd-list').innerHTML = S.cards.map(c=>`
+    <div class="cardrow" data-id="${c.id}">
+      <span class="cchip"></span><span class="l4">${esc(cLab(c))}</span>
+      <input class="nmi" value="${esc(c.name)}" placeholder="Tên thẻ">
+      <button class="x" data-del="${c.id}">✕</button>
+    </div>`).join('') || '<div class="cardrow" style="color:#8b93a1">Chưa có thẻ nào</div>';
+}
+$('#btn-cards').addEventListener('click', () => { drawCards(); $('#ov-card').classList.add('open'); setTimeout(()=>$('#cd-l4').focus(),60); });
+$('#cd-l4').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g,'').slice(0,4); });
+$('#cd-add').addEventListener('click', () => {
+  const l4 = $('#cd-l4').value.trim();
+  if (l4.length !== 4){ toast('Nhập đủ 4 số cuối'); $('#cd-l4').focus(); return; }
+  if (S.cards.some(c => c.last4 === l4)){ toast('Thẻ ****'+l4+' đã có'); return; }
+  S.cards.push({ id:uid(), last4:l4, name:$('#cd-name').value.trim() || ('Card ****'+l4) });
+  $('#cd-l4').value = ''; $('#cd-name').value = '';
+  drawCards(); render(); toast('Đã thêm thẻ ****'+l4);
+});
+$('#cd-l4').addEventListener('keydown', e => { if (e.key==='Enter') $('#cd-add').click(); });
+$('#cd-name').addEventListener('keydown', e => { if (e.key==='Enter') $('#cd-add').click(); });
+$('#cd-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  const id = b.dataset.del;
+  if (S.txns.some(t => t.card === id) && !confirm('Thẻ này đang có giao dịch. Vẫn xoá thẻ?')) return;
+  S.cards = S.cards.filter(c => c.id !== id);
+  drawCards(); render();
+});
+$('#cd-list').addEventListener('input', e => {
+  const i = e.target.closest('.nmi'); if (!i) return;
+  const c = cardOf(i.closest('.cardrow').dataset.id); c.name = i.value; save();
+});
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('.ov').classList.remove('open')));
+document.querySelectorAll('.ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.ov.open').forEach(o=>o.classList.remove('open')); });
+
+/* ---------- JSON file open / save ---------- */
+$('#btn-open').addEventListener('click', async () => {
+  if (window.showOpenFilePicker){
+    try {
+      const [h] = await window.showOpenFilePicker({ types:[{description:'JSON', accept:{'application/json':['.json']}}] });
+      const f = await h.getFile();
+      applyDB(JSON.parse(await f.text()));
+      fileHandle = h; setStat(h.name + ' · đã lưu');
+      toast('Đã kết nối ' + h.name + ' — mọi thay đổi tự ghi vào file');
+    } catch(e){ if (e && e.name !== 'AbortError') toast('Không mở được file JSON'); }
+  } else $('#file-json').click();
+});
+$('#file-json').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    applyDB(JSON.parse(await f.text()));
+    setStat(f.name + ' · chỉ đọc — dùng "Lưu JSON"');
+    toast('Đã nạp ' + f.name + ' (trình duyệt này không ghi thẳng vào file)');
+  } catch(err){ toast('File JSON không hợp lệ'); }
+  e.target.value = '';
+});
+$('#btn-savejson').addEventListener('click', async () => {
+  if (fileHandle){ await flush(); toast('Đã ghi vào ' + fileHandle.name); return; }
+  if (window.showSaveFilePicker){
+    try {
+      fileHandle = await window.showSaveFilePicker({ suggestedName:'data.json', types:[{description:'JSON', accept:{'application/json':['.json']}}] });
+      await flush(); toast('Đã lưu và kết nối ' + fileHandle.name); return;
+    } catch(e){ if (e && e.name === 'AbortError') return; fileHandle = null; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([dbText()], {type:'application/json'}));
+  a.download = 'data.json'; a.click();
+  toast('Đã tải data.json — chép đè vào thư mục dự án');
+});
+window.addEventListener('beforeunload', e => { if (dirty && !fileHandle){ e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- export: bank-style statement ---------- */
+const EN_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const enDate = v => { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(v||'').trim());
+  return m ? `${m[1].padStart(2,'0')} ${EN_MON[+m[2]-1]||m[2]} ${m[3]}` : (v || '—'); };
+const money = n => (Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function stmtRows(){
+  return filtered().slice().sort((a,b) =>
+    (toISO(a.date)+' '+(a.time||'00:00')).localeCompare(toISO(b.date)+' '+(b.time||'00:00')));
+}
+function openStmt(){
+  const st = S.statement || {};
+  const rows = stmtRows();
+  const ds = rows.map(t=>toISO(t.date)).filter(Boolean).sort();
+  const back = iso => iso ? iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
+  $('#s-holder').value  = st.holder || '';
+  $('#s-account').value = st.account || (S.cards[0] ? cLab(S.cards[0]) : '');
+  $('#s-address').value = st.address || '';
+  $('#s-from').value    = st.from || back(ds[0]);
+  $('#s-to').value      = st.to   || back(ds[ds.length-1]);
+  $('#s-open').value    = st.opening != null ? st.opening : '0.00';
+  $('#s-cur').value     = st.currency || 'USD';
+  $('#s-note').value    = st.note || 'This statement is generated electronically by LoomPay and is valid without a signature.';
+  $('#s-count').textContent = `Sao kê gồm ${rows.length} giao dịch đang hiển thị theo bộ lọc hiện tại.`;
+  $('#ov-stmt').classList.add('open');
+}
+function readStmt(){
+  const st = {
+    holder:$('#s-holder').value.trim(), account:$('#s-account').value.trim(),
+    address:$('#s-address').value.trim(), from:$('#s-from').value.trim(), to:$('#s-to').value.trim(),
+    opening:$('#s-open').value.trim() || '0', currency:($('#s-cur').value.trim() || 'USD').toUpperCase(),
+    note:$('#s-note').value.trim()
+  };
+  S.statement = st; save();
+  return st;
+}
+
+const PAGE_H = 1123;
+
+function buildStatement(st){
+  const cur = st.currency;
+  const rows = stmtRows();
+  const opening = parseAmt(st.opening);
+  let run = opening;
+  const data = rows.map(t => { run += t.amount; return { t, bal:run }; });
+  const debit  = rows.reduce((s,t)=> t.amount<0 ? s-t.amount : s, 0);
+  const credit = rows.reduce((s,t)=> t.amount>0 ? s+t.amount : s, 0);
+  const closing = opening - debit + credit;
+  const now = new Date();
+  const p2 = x => String(x).padStart(2,'0');
+  const issued = `${p2(now.getDate())} ${EN_MON[now.getMonth()]} ${now.getFullYear()}, ${p2(now.getHours())}:${p2(now.getMinutes())}`;
+  const code = 'ST' + now.getFullYear() + p2(now.getMonth()+1) + p2(now.getDate()) + '-' + String(rows.length).padStart(3,'0');
+
+  const byCard = S.cards.map(c => {
+    const rs = rows.filter(t => t.card === c.id);
+    return { c, n:rs.length, dr:rs.reduce((s,t)=> t.amount<0?s-t.amount:s,0), cr:rs.reduce((s,t)=> t.amount>0?s+t.amount:s,0) };
+  }).filter(x => x.n);
+
+  const head = cont => `
+    <div class="sh">
+      <div class="sh-b">
+        <div class="sh-m"><svg viewBox="0 0 24 24"><path d="M3 4h18L9 20H3l7-9H3z"/></svg></div>
+        <div><div class="sh-n">LoomPay</div><div class="sh-s">PAYMENT &amp; CARD SERVICES</div></div>
+      </div>
+      <div class="sh-t"><div class="t1">Card account statement</div>
+        <div class="t2">Statement${cont ? ' (continued)' : ''} · ${esc(code)}</div></div>
+    </div>`;
+  const foot = `<div class="ft"><span>LoomPay · Statement ${esc(code)} · Issued ${issued}</span><span class="pno">Page</span></div>`;
+  const txHead = `<thead><tr>
+      <th style="width:24px" class="c">#</th>
+      <th style="width:68px">Date</th>
+      <th style="width:76px">Reference</th>
+      <th>Description</th>
+      <th style="width:62px" class="c">Card</th>
+      <th style="width:70px" class="r">Debit</th>
+      <th style="width:62px" class="r">Credit</th>
+      <th style="width:76px" class="r">Balance</th>
+    </tr></thead>`;
+
+  const refOf = t => {
+    const m = /Ref\s+([A-Z0-9]+)/.exec(t.desc || '');
+    if (m) return m[1];
+    const x = /TxID\s+([\d-]+)/.exec(t.desc || '');
+    return x ? x[1].slice(0,10) + '…' : '—';
+  };
+  const descOf = t => {
+    const main = (t.merchant || t.desc || '').trim();
+    const sub  = (t.desc || '').replace(/·\s*TxID.*$/, '').trim();
+    const tag  = t.status && t.status !== 'success' ? `<span class="tag ${t.status}">${stLabel(t.status)}</span>` : '';
+    return `<div>${esc(main)}${tag}</div>` + (sub && sub !== main ? `<div class="d2">${esc(sub)}</div>` : '') +
+           (t.name ? `<div class="d2">Account: ${esc(t.name)}</div>` : '');
+  };
+
+  const body = data.map(row => {
+    const t = row.t;
+    return `<tr>
+      <td class="c idx"></td>
+      <td class="nw">${esc(enDate(t.date))}${t.time?`<div class="d2">${esc(t.time)}</div>`:''}</td>
+      <td style="font-size:8px;word-break:break-all">${esc(refOf(t))}</td>
+      <td>${descOf(t)}</td>
+      <td class="c cd4">${esc(cLab(cardOf(t.card)))}</td>
+      <td class="r mono dr">${t.amount<0?money(-t.amount):''}</td>
+      <td class="r mono cr">${t.amount>0?money(t.amount):''}</td>
+      <td class="r mono">${money(row.bal)}</td>
+    </tr>`;
+  }).join('');
+
+  const totRow = `<tr class="tot"><td colspan="5">TOTAL FOR THE PERIOD (${rows.length} transactions)</td>
+      <td class="r mono dr">${money(debit)}</td><td class="r mono cr">${money(credit)}</td>
+      <td class="r mono">${money(closing)}</td></tr>`;
+
+  const tail = `<div class="stmt-tail">
+      <div class="note">${esc(st.note || '')}<br>Debit is the amount charged to the account; Credit is the amount paid in. Closing balance = Opening balance − Total debits + Total credits.<br>Please review this statement and notify LoomPay of any discrepancy within 07 days from the issue date.</div>
+      <div class="sign"><div class="bx"><b>Account holder</b><div class="ln">Signature / full name</div></div>
+      <div class="bx"><b>LoomPay</b><div class="ln">Electronic statement — no signature required</div></div></div>
+    </div>`;
+
+  $('#sheet').innerHTML = `<div class="pg">${head(false)}
+    <div class="inf">
+      <div><b>Account holder</b><span>${esc(st.holder || '—')}</span></div>
+      <div><b>Statement no.</b><span>${esc(code)}</span></div>
+      <div><b>Account / card</b><span>${esc(st.account || '—')}</span></div>
+      <div><b>Statement period</b><span>${esc(enDate(st.from))} — ${esc(enDate(st.to))}</span></div>
+      <div><b>Address</b><span>${esc(st.address || '—')}</span></div>
+      <div><b>Issued on</b><span>${issued}</span></div>
+      <div><b>Currency</b><span>${esc(cur)}</span></div>
+      <div><b>Transactions</b><span>${rows.length}</span></div>
+    </div>
+    <div class="sum">
+      <div><div class="l">Opening balance</div><div class="v">${money(opening)}</div></div>
+      <div><div class="l">Total debits</div><div class="v dr">${money(debit)}</div></div>
+      <div><div class="l">Total credits</div><div class="v cr">${money(credit)}</div></div>
+      <div><div class="l">Cashback</div><div class="v">${esc(S.cashback || '0')}</div></div>
+      <div><div class="l">Closing balance</div><div class="v">${money(closing)}</div></div>
+    </div>
+    ${byCard.length > 1 ? `<div class="sec-t">Summary by card</div>
+    <table class="cd"><thead><tr><th>Card</th><th>Card name</th><th class="c" style="width:62px">Txns</th>
+      <th class="r" style="width:88px">Debit</th><th class="r" style="width:88px">Credit</th></tr></thead><tbody>
+      ${byCard.map(x=>`<tr><td><b>${esc(cLab(x.c))}</b></td><td>${esc(x.c.name)}</td><td class="c">${x.n}</td>
+        <td class="r mono">${money(x.dr)}</td><td class="r mono">${money(x.cr)}</td></tr>`).join('')}
+    </tbody></table>` : ''}
+    <div class="sec-t">Transaction details</div>
+    <table class="tx">${txHead}<tbody>${body}${totRow}</tbody></table>
+    ${tail}${foot}</div>`;
+
+  reflow(() => `<div class="pg">${head(true)}<div class="sec-t">Transaction details (continued)</div>
+      <table class="tx">${txHead}<tbody></tbody></table>${foot}</div>`);
+  return { code };
+}
+
+// Chuyển bớt dòng sang trang sau cho tới khi mọi trang vừa khổ A4
+function reflow(makePage){
+  const sheet = $('#sheet');
+  for (let guard = 0; guard < 400; guard++){
+    const pgs = [...sheet.querySelectorAll('.pg')];
+    let moved = false;
+    for (const pg of pgs){
+      if (pg.scrollHeight <= PAGE_H) continue;
+      const tb = pg.querySelector('table.tx tbody');
+      const dataRows = [...tb.rows].filter(r => !r.classList.contains('tot'));
+      if (dataRows.length <= 1) continue;
+      let nxt = pg.nextElementSibling;
+      if (!nxt || !nxt.classList.contains('pg')){
+        const tmp = document.createElement('div');
+        tmp.innerHTML = makePage();
+        nxt = tmp.firstElementChild;
+        pg.after(nxt);
+      }
+      const ntb = nxt.querySelector('table.tx tbody');
+      ntb.insertBefore(dataRows[dataRows.length-1], ntb.firstChild);
+      const tail = pg.querySelector('.stmt-tail');
+      if (tail){
+        const tot = pg.querySelector('tr.tot');
+        if (tot) ntb.appendChild(tot);
+        nxt.insertBefore(tail, nxt.querySelector('.ft'));
+      }
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  const pgs = [...sheet.querySelectorAll('.pg')];
+  pgs.forEach((pg,i) => { const n = pg.querySelector('.pno'); if (n) n.textContent = `Page ${i+1} of ${pgs.length}`; });
+  let k = 0;
+  sheet.querySelectorAll('table.tx tbody tr').forEach(tr => {
+    if (tr.classList.contains('tot')) return;
+    const c = tr.querySelector('.idx'); if (c) c.textContent = ++k;
+  });
+}
+
+async function runStatement(mode){
+  const st = readStmt();
+  const { code } = buildStatement(st);
+  $('#ov-stmt').classList.remove('open');
+  if (mode === 'print'){ setTimeout(()=>window.print(), 80); return; }
+  if (!window.html2canvas || !window.jspdf){ toast('Thiếu thư viện tạo PDF — dùng nút In'); window.print(); return; }
+
+  const btn = $('#s-pdf'); btn.disabled = true;
+  toast('Đang tạo sao kê PDF…');
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait', compress:true });
+    const pages = [...document.querySelectorAll('#sheet .pg')];
+    for (let i = 0; i < pages.length; i++){
+      const cv = await html2canvas(pages[i], {
+        scale:2, backgroundColor:'#ffffff', logging:false, useCORS:true,
+        width:794, height:PAGE_H, windowWidth:794, windowHeight:PAGE_H, scrollX:0, scrollY:0
+      });
+      if (i) pdf.addPage();
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.94), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+    }
+    pdf.save('sao-ke-' + code + '.pdf');
+    toast('Đã tải sao kê PDF (' + pages.length + ' trang)');
+  } catch(e){
+    toast('Không tạo được PDF — mở hộp thoại In');
+    window.print();
+  } finally { btn.disabled = false; }
+}
+$('#s-pdf').addEventListener('click', ()=>runStatement('pdf'));
+$('#s-print').addEventListener('click', ()=>runStatement('print'));
+
+$('#p-exp').addEventListener('click', e => {
+  const it = e.target.closest('[data-exp]'); if (!it) return;
+  $('#p-exp').classList.remove('open');
+  if (it.dataset.exp === 'stmt'){ openStmt(); return; }
+  const list = filtered();
+  const rows = [['#','Card','Name','Description','Merchant','Date','Time','Amount','Status']].concat(
+    list.map((t,i)=>[i+1,cLab(cardOf(t.card)),t.name,t.desc,t.merchant,t.date,t.time||'',t.amount,stLabel(t.status)]));
+  const csv = '﻿' + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'payment-history-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); toast('Đã tải CSV');
+});
+/* ---------- init ---------- */
+boot();
+</script>
+</body>
+</html>

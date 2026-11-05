@@ -1,0 +1,71 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: saoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Validate and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check JavaScript and package public files
+        run: |
+          python3 -m unittest discover -s tests -v
+          bash scripts/package.sh "$GITHUB_SHA"
+
+  deploy:
+    name: Deploy sk.zenify.cx
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: production
+      url: https://sk.zenify.cx
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Package release
+        run: bash scripts/package.sh "$GITHUB_SHA"
+      - name: Upload and activate release
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.SAOKE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SAOKE_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY" || { echo 'Missing SAOKE_SSH_KEY secret'; exit 1; }
+          test -n "$KNOWN_HOSTS" || { echo 'Missing SAOKE_KNOWN_HOSTS secret'; exit 1; }
+          ssh_dir="$(mktemp -d)"
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          chmod 600 "$ssh_dir/key" "$ssh_dir/known_hosts"
+          ssh -T -p 1786 -i "$ssh_dir/key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            saoke-deploy@14.225.7.175 "deploy $GITHUB_SHA" < .deploy/site.tar.gz
+      - name: Verify public HTTPS release
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 20 https://sk.zenify.cx/version.txt)"
+          test "$revision" = "$GITHUB_SHA"
+          curl --fail --silent --show-error --max-time 20 https://sk.zenify.cx/ -o /dev/null
+          printf 'Deployed %s to https://sk.zenify.cx\n' "$revision" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,18 @@
+# Local financial data and source documents
+/data.json
+/Giaodich/
+/mb-saoke.html
+*.pdf
+*.csv
+*.xlsx
+
+# Credentials and local/build files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.DS_Store
+/.deploy/
+__pycache__/
+*.pyc
