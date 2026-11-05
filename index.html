@@ -234,10 +234,32 @@ table.tx td.cd4{font-size:8px;line-height:1.25}
 }
 @media (max-width:1080px){.stats{grid-template-columns:1fr}}
 @media (max-width:860px){.side{display:none} .wrap{padding:16px 14px 60px} .float{display:none}}
+.auth-screen{position:fixed;inset:0;background:#f4f6fa;z-index:500;display:grid;place-items:center;padding:24px}
+.auth-screen[hidden]{display:none}
+.auth-card{width:min(100%,400px);padding:32px;background:#fff;border:1px solid var(--line2);border-radius:18px;box-shadow:0 12px 40px #16222f0a}
+.auth-card h1{margin:0 0 10px;color:var(--navy);font-weight:600}
+.auth-card p{color:var(--muted2);line-height:1.6;margin-bottom:24px}
+.auth-card label{display:block;font-weight:500;margin:16px 0 7px}
+.auth-card input{width:100%;padding:11px 12px;border:1px solid var(--line2);border-radius:8px}
+.auth-card button{width:100%;justify-content:center;margin-top:22px}
+#login-error{color:var(--red);font-size:13px;min-height:20px;margin-top:12px;line-height:1.5}
+@media print{.auth-screen{display:none!important}}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="auth-screen" id="auth-screen">
+  <form class="auth-card" id="login-form">
+    <h1>SaoKe</h1>
+    <p>Đăng nhập để quản lý và lưu lịch sử giao dịch của bạn.</p>
+    <label for="login-user">Tên đăng nhập</label>
+    <input id="login-user" name="username" autocomplete="username" value="admin" required>
+    <label for="login-pass">Mật khẩu</label>
+    <input id="login-pass" name="password" type="password" autocomplete="current-password" required>
+    <button class="btn dark" type="submit" id="login-submit">Đăng nhập</button>
+    <div id="login-error" role="alert" aria-live="polite"></div>
+  </form>
+</div>
+<div class="app" id="application" inert>
   <!-- Sidebar -->
   <aside class="side">
     <div class="brand">
@@ -351,10 +373,10 @@ table.tx td.cd4{font-size:8px;line-height:1.25}
             </div>
           </div>
 
-          <span class="chip" id="dbstat">data.json</span>
-          <button class="btn" id="btn-open"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Mở JSON</button>
-          <button class="btn" id="btn-savejson"><svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg>Lưu JSON</button>
-          <input type="file" id="file-json" accept=".json,application/json" hidden>
+          <span class="chip" id="dbstat" role="status" aria-live="polite">Đang kết nối…</span>
+          <button class="btn" id="btn-save">Lưu ngay</button>
+          <button class="btn" id="btn-reload">Tải lại</button>
+          <button class="btn" id="btn-logout">Đăng xuất</button>
           <button class="btn" id="btn-cards"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Thêm thẻ</button>
           <button class="btn dark" id="btn-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Chèn giao dịch</button>
         </div>
@@ -472,7 +494,7 @@ table.tx td.cd4{font-size:8px;line-height:1.25}
 <script>
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
-const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const usd = n => '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtAmt = n => n === 0 ? '$0' : (n < 0 ? '-' + usd(n) : '+' + usd(n));
 const parseAmt = s => {
@@ -489,9 +511,9 @@ const ST_COLOR = {success:'#15803d',pending:'#a96700',failed:'#c92a2a',refunded:
 const stLabel = v => (STATUS.find(x=>x[0]===v)||STATUS[0])[1];
 
 /* ---------- data ---------- */
-const DB_FILE = 'data.json';
 let S = { meta:{}, balance:'0.00', cashback:'0', cards:[], txns:[] };
-let fileHandle = null, loading = true, dirty = false, saveTimer = null, lastSaved = '';
+let loading = true, dirty = false, saveTimer = null, lastSaved = '';
+let revision = 0, inFlight = null, conflict = false, loaded = false;
 
 function normalize(d){
   d = d || {};
@@ -508,14 +530,6 @@ function normalize(d){
   };
 }
 const snap = () => JSON.stringify({ b:S.balance, c:S.cashback, st:S.statement, cards:S.cards, txns:S.txns });
-function dbText(){
-  const o = Object.assign({}, S);
-  const z = new Date(), q = x => String(x).padStart(2,'0');
-  o.meta = Object.assign({}, S.meta, {
-    updated: `${z.getFullYear()}-${q(z.getMonth()+1)}-${q(z.getDate())} ${q(z.getHours())}:${q(z.getMinutes())}`
-  });
-  return JSON.stringify(o, null, 2);
-}
 function setStat(txt, warn){
   const el = $('#dbstat');
   el.textContent = txt;
@@ -524,37 +538,78 @@ function setStat(txt, warn){
 }
 function save(){
   if (loading) return;
-  if (snap() === lastSaved) return;
-  dirty = true;
-  setStat(fileHandle ? 'data.json · đang lưu…' : 'data.json · CHƯA LƯU', !fileHandle);
+  dirty = snap() !== lastSaved;
+  if (!dirty || conflict) return;
+  setStat('Chưa lưu…', true);
   clearTimeout(saveTimer); saveTimer = setTimeout(flush, 400);
 }
-async function flush(){
-  if (!fileHandle) return;
-  const s0 = snap();
-  try {
-    const w = await fileHandle.createWritable();
-    await w.write(dbText()); await w.close();
-    lastSaved = s0; dirty = false; setStat('data.json · đã lưu');
-  } catch(e){ setStat('data.json · lỗi ghi file', true); }
+function showAuth(message=''){
+  $('#auth-screen').hidden = false;
+  $('#application').inert = true;
+  $('#login-error').textContent = message;
 }
-function applyDB(d){
-  S = normalize(d);
+function hideAuth(){
+  $('#auth-screen').hidden = true;
+  $('#application').inert = false;
+}
+async function api(path, options={}){
+  const response = await fetch('/api/' + path, {
+    credentials:'same-origin', cache:'no-store', ...options,
+    headers:{'Content-Type':'application/json', ...options.headers}
+  });
+  const result = await response.json();
+  if (!response.ok){ const error = new Error(result.error || 'Không kết nối được máy chủ.'); error.status = response.status; throw error; }
+  return result;
+}
+function flush(){
+  if (inFlight) return inFlight;
+  if (loading || !dirty || conflict) return Promise.resolve();
+  clearTimeout(saveTimer);
+  const captured = snap(), payload = JSON.stringify({revision, data:S});
+  setStat('Đang lưu…');
+  inFlight = (async()=>{
+    let failed = false;
+    try {
+      const result = await api('state', {method:'PUT', body:payload});
+      revision = result.revision;
+      lastSaved = captured; dirty = snap() !== lastSaved;
+      setStat(dirty ? 'Chưa lưu…' : 'Đã lưu', dirty);
+    } catch(error){
+      failed = true; dirty = true;
+      if (error.status === 409){
+        conflict = true;
+        setStat('Dữ liệu đã đổi ở cửa sổ khác · cần tải lại', true);
+        toast(error.message);
+      } else if (error.status === 401){
+        setStat('Chưa lưu · cần đăng nhập', true);
+        showAuth('Phiên đăng nhập đã hết hạn. Đăng nhập lại để lưu thay đổi.');
+      } else {
+        setStat('Chưa lưu · bấm Lưu ngay để thử lại', true);
+        toast(error.message || 'Mất kết nối. Thay đổi chưa được lưu.');
+      }
+    } finally {
+      inFlight = null;
+      if (dirty && !failed && !conflict) saveTimer = setTimeout(flush, 400);
+    }
+  })();
+  return inFlight;
+}
+function applyDB(result){
+  S = normalize(result.data); revision = result.revision;
   $('#balance').textContent = S.balance;
   $('#cashback').textContent = S.cashback;
+  conflict = false; dirty = false; loaded = true;
   loading = false; lastSaved = snap(); render();
 }
 async function boot(){
+  loading = true;
   try {
-    const r = await fetch(DB_FILE + '?t=' + Date.now());
-    if (!r.ok) throw new Error(r.status);
-    applyDB(await r.json());
-    setStat('data.json · chỉ đọc');
-    $('#dbstat').title = 'Đã nạp data.json. Bấm "Mở JSON" và chọn đúng file này để mọi thay đổi tự ghi vào file.';
-  } catch(e){
-    applyDB(null);
-    setStat('Chưa đọc được data.json', true);
-    $('#dbstat').title = 'Mở trang qua http://localhost, hoặc bấm "Mở JSON" để chọn file data.json.';
+    applyDB(await api('state'));
+    hideAuth(); setStat('Đã lưu');
+  } catch(error){
+    loading = false;
+    showAuth(error.status === 401 ? '' : 'Không tải được dữ liệu. Vui lòng thử đăng nhập lại.');
+    setStat('Chưa kết nối', true);
   }
 }
 
@@ -754,7 +809,7 @@ $('#pl').onclick = () => { page = 1e9; render(); };
 /* ---------- balance / cashback ---------- */
 ['balance','cashback'].forEach(id => {
   const el = document.getElementById(id);
-  el.addEventListener('focusout', () => { S[id] = el.textContent.trim(); save(); });
+  el.addEventListener('focusout', () => { S[id] = String(parseAmt(el.textContent)); save(); });
   el.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); el.blur(); } });
 });
 
@@ -826,41 +881,45 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 document.querySelectorAll('.ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.ov.open').forEach(o=>o.classList.remove('open')); });
 
-/* ---------- JSON file open / save ---------- */
-$('#btn-open').addEventListener('click', async () => {
-  if (window.showOpenFilePicker){
-    try {
-      const [h] = await window.showOpenFilePicker({ types:[{description:'JSON', accept:{'application/json':['.json']}}] });
-      const f = await h.getFile();
-      applyDB(JSON.parse(await f.text()));
-      fileHandle = h; setStat(h.name + ' · đã lưu');
-      toast('Đã kết nối ' + h.name + ' — mọi thay đổi tự ghi vào file');
-    } catch(e){ if (e && e.name !== 'AbortError') toast('Không mở được file JSON'); }
-  } else $('#file-json').click();
-});
-$('#file-json').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
+/* ---------- session / autosave ---------- */
+$('#login-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  $('#login-submit').disabled = true;
+  $('#login-error').textContent = '';
   try {
-    applyDB(JSON.parse(await f.text()));
-    setStat(f.name + ' · chỉ đọc — dùng "Lưu JSON"');
-    toast('Đã nạp ' + f.name + ' (trình duyệt này không ghi thẳng vào file)');
-  } catch(err){ toast('File JSON không hợp lệ'); }
-  e.target.value = '';
+    await api('login', {method:'POST', body:JSON.stringify({
+      username:$('#login-user').value.trim(), password:$('#login-pass').value
+    })});
+    $('#login-pass').value = '';
+    if (loaded && dirty){ hideAuth(); await flush(); }
+    else await boot();
+  } catch(error){ $('#login-error').textContent = error.message || 'Không kết nối được máy chủ.'; }
+  finally { $('#login-submit').disabled = false; }
 });
-$('#btn-savejson').addEventListener('click', async () => {
-  if (fileHandle){ await flush(); toast('Đã ghi vào ' + fileHandle.name); return; }
-  if (window.showSaveFilePicker){
-    try {
-      fileHandle = await window.showSaveFilePicker({ suggestedName:'data.json', types:[{description:'JSON', accept:{'application/json':['.json']}}] });
-      await flush(); toast('Đã lưu và kết nối ' + fileHandle.name); return;
-    } catch(e){ if (e && e.name === 'AbortError') return; fileHandle = null; }
-  }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([dbText()], {type:'application/json'}));
-  a.download = 'data.json'; a.click();
-  toast('Đã tải data.json — chép đè vào thư mục dự án');
+$('#btn-save').addEventListener('click', async () => {
+  await flush();
+  if (!dirty) toast('Đã lưu thay đổi');
 });
-window.addEventListener('beforeunload', e => { if (dirty && !fileHandle){ e.preventDefault(); e.returnValue = ''; } });
+$('#btn-reload').addEventListener('click', async () => {
+  if (inFlight) await inFlight;
+  if (dirty && !confirm('Thay đổi chưa lưu sẽ bị bỏ. Bạn muốn tải lại dữ liệu từ máy chủ?')) return;
+  clearTimeout(saveTimer);
+  await boot();
+});
+$('#btn-logout').addEventListener('click', async () => {
+  await flush();
+  if (dirty){ toast('Hãy lưu thay đổi hoặc tải lại trước khi đăng xuất.'); return; }
+  try {
+    await api('logout', {method:'POST', body:'{}'});
+    window.location.reload();
+  } catch(error){ toast(error.message || 'Không đăng xuất được.'); }
+});
+window.addEventListener('beforeunload', event => {
+  if (document.activeElement?.isContentEditable) document.activeElement.blur();
+  if (dirty){ event.preventDefault(); event.returnValue = ''; }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+window.addEventListener('online', () => { if (dirty && !conflict) flush(); });
 
 /* ---------- export: bank-style statement ---------- */
 const EN_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

@@ -14,5 +14,9 @@
 *.key
 .DS_Store
 /.deploy/
+/.local/
+/.secrets/
+*.sqlite3
+*.sqlite3-*
 __pycache__/
 *.pyc

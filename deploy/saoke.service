@@ -1,0 +1,24 @@
+[Unit]
+Description=SaoKe database API
+After=network.target
+
+[Service]
+Type=simple
+User=saoke-app
+Group=saoke-app
+WorkingDirectory=/var/www/saoke/current
+EnvironmentFile=/etc/saoke/saoke.env
+Environment=PYTHONPATH=/opt/saoke/runtime
+ExecStart=/usr/bin/python3 -m gunicorn --bind 127.0.0.1:8175 --workers 2 --threads 2 --timeout 30 --worker-tmp-dir /run/saoke server.app:application
+Restart=on-failure
+RestartSec=3
+RuntimeDirectory=saoke
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/saoke
+
+[Install]
+WantedBy=multi-user.target

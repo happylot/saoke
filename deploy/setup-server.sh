@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run as root on Ubuntu, from a directory containing deploy/ and deploy-key.pub.
+# Run as root on Ubuntu, with the full project and a deployment public key.
 set -euo pipefail
 test "$(id -u)" = 0 || { printf '%s\n' 'Run as root.' >&2; exit 1; }
 source_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -53,4 +53,5 @@ if [ "${RENEWED_LINEAGE:-}" = /etc/letsencrypt/live/sk.zenify.cx ]; then
 fi
 HOOK
 chmod 755 /etc/letsencrypt/renewal-hooks/deploy/saoke-reload-nginx
+bash "$source_dir/setup-backend.sh"
 printf '%s\n' 'SaoKe server configured; ready for GitHub Actions deployment.'

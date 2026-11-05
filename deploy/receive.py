@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Forced SSH command: accepts only a small, whitelisted static release."""
+"""Forced SSH command: deploys application code, never persistent user data."""
 import fcntl
 import gzip
 import io
@@ -12,9 +12,10 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 
 BASE = Path('/var/www/saoke')
-FILES = {'index.html', 'data.json', 'version.txt'}
+FILES = {'index.html', 'server/app.py', 'version.txt'}
 LIMIT = 5 * 1024 * 1024
 
 
@@ -42,7 +43,7 @@ def deploy():
     with tarfile.open(fileobj=io.BytesIO(unpacked), mode='r:') as tar:
         members = tar.getmembers()
         if len(members) != len(FILES) or {m.name for m in members} != FILES:
-            raise ValueError('Archive must contain only index.html, data.json and version.txt')
+            raise ValueError('Archive must contain only index.html, server/app.py and version.txt')
         if any(not m.isfile() or m.size > LIMIT for m in members):
             raise ValueError('Invalid archive entry')
         payloads = {m.name: tar.extractfile(m).read() for m in members}
@@ -50,11 +51,8 @@ def deploy():
         raise ValueError('Commit SHA does not match release')
     if b'<!doctype html>' not in payloads['index.html'].lower():
         raise ValueError('Invalid index.html')
-    data = json.loads(payloads['data.json'])
-    expected = {'meta': {}, 'balance': '0.00', 'cashback': '0',
-                'statement': {}, 'cards': [], 'txns': []}
-    if data != expected:
-        raise ValueError('Only empty deployment data is permitted')
+    import ast
+    ast.parse(payloads['server/app.py'].decode())
 
     releases = BASE / 'releases'
     releases.mkdir(exist_ok=True)
@@ -66,9 +64,12 @@ def deploy():
         try:
             for name, content in payloads.items():
                 target = release / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.parent.chmod(0o755)
                 target.write_bytes(content)
                 target.chmod(0o644)
             activate(release)
+            subprocess.run(['sudo', '-n', '/usr/bin/systemctl', 'restart', 'saoke.service'], check=True)
             # Verify the actual Nginx HTTPS vhost before accepting this deployment.
             result = subprocess.run([
                 'curl', '--fail', '--silent', '--show-error', '--max-time', '15',
@@ -77,9 +78,25 @@ def deploy():
             ], check=True, capture_output=True, text=True)
             if result.stdout.strip() != revision:
                 raise ValueError('HTTPS health check returned an unexpected release')
+            for attempt in range(20):
+                try:
+                    result = subprocess.run([
+                        'curl', '--fail', '--silent', '--show-error', '--max-time', '3',
+                        'http://127.0.0.1:8175/api/health',
+                    ], check=True, capture_output=True, text=True)
+                    health = json.loads(result.stdout)
+                    if health.get('version') != revision or health.get('status') != 'ok':
+                        raise ValueError('Backend version mismatch')
+                    break
+                except (subprocess.CalledProcessError, ValueError):
+                    if attempt == 19:
+                        raise
+                    time.sleep(1)
         except Exception:
             if previous is not None:
                 activate(previous)
+                action = 'restart' if (previous / 'server/app.py').exists() else 'stop'
+                subprocess.run(['sudo', '-n', '/usr/bin/systemctl', action, 'saoke.service'], check=True)
             else:
                 (BASE / 'current').unlink(missing_ok=True)
             shutil.rmtree(release)

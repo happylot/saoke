@@ -1,0 +1,12 @@
+[Unit]
+Description=Back up SaoKe SQLite database
+
+[Service]
+Type=oneshot
+User=saoke-app
+Group=saoke-app
+ExecStart=/usr/bin/python3 /usr/local/lib/saoke/backup.py
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/saoke

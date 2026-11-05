@@ -36,21 +36,27 @@ class DeploymentTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.base = Path(self.temporary.name)
         self.files = {'index.html': b'<!doctype html><title>Test</title>',
-                      'data.json': json.dumps(EMPTY).encode(), 'version.txt': SHA.encode()}
+                      'server/app.py': b'application = None\n', 'version.txt': SHA.encode()}
 
     def run_deploy(self, command=None, error=None):
-        response = SimpleNamespace(stdout=SHA + '\n')
+        def run(args, **kwargs):
+            if args[0] == 'curl':
+                if error and 'https://sk.zenify.cx/version.txt' in args:
+                    raise error
+                value = json.dumps({'status':'ok','version':SHA}) if 'http://127.0.0.1:8175/api/health' in args else SHA + '\n'
+                return SimpleNamespace(stdout=value)
+            return SimpleNamespace(returncode=0)
         with patch.object(receiver, 'BASE', self.base), \
              patch.dict(receiver.os.environ, {'SSH_ORIGINAL_COMMAND': command or 'deploy ' + SHA}), \
              patch.object(receiver.sys, 'stdin', SimpleNamespace(buffer=io.BytesIO(archive(self.files)))), \
-             patch.object(receiver.subprocess, 'run', return_value=response, side_effect=error):
+             patch.object(receiver.subprocess, 'run', side_effect=run):
             receiver.deploy()
 
     def test_valid_release_is_activated(self):
         self.run_deploy()
         self.assertTrue((self.base / 'current').is_symlink())
         self.assertEqual((self.base / 'current/version.txt').read_text(), SHA)
-        self.assertEqual({p.name for p in (self.base / 'current').iterdir()}, set(self.files))
+        self.assertEqual({str(p.relative_to(self.base / 'current')) for p in (self.base / 'current').rglob('*') if p.is_file()}, set(self.files))
 
     def test_extra_paths_and_wrong_revision_are_rejected(self):
         for name, content in [('../outside', b'bad'), ('.env', b'bad'), ('version.txt', b'b' * 40)]:
@@ -72,7 +78,7 @@ class DeploymentTests(unittest.TestCase):
 
     def test_financial_data_is_rejected(self):
         self.files['data.json'] = json.dumps({**EMPTY, 'cards': [{'last4': '1234'}]}).encode()
-        with self.assertRaisesRegex(ValueError, 'empty deployment data'):
+        with self.assertRaisesRegex(ValueError, 'Archive must contain only'):
             self.run_deploy()
 
     def test_failed_https_check_restores_previous_release(self):

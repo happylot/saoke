@@ -26,6 +26,7 @@ jobs:
       - name: Check JavaScript and package public files
         run: |
           python3 -m unittest discover -s tests -v
+          node scripts/test-autosave.mjs
           bash scripts/package.sh "$GITHUB_SHA"
 
   deploy:
@@ -68,4 +69,6 @@ jobs:
           revision="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 20 https://sk.zenify.cx/version.txt)"
           test "$revision" = "$GITHUB_SHA"
           curl --fail --silent --show-error --max-time 20 https://sk.zenify.cx/ -o /dev/null
+          curl --fail --silent --show-error --retry 3 --max-time 20 https://sk.zenify.cx/api/health \
+            | python3 -c 'import json,os,sys; h=json.load(sys.stdin); assert h["status"]=="ok" and h["version"]==os.environ["GITHUB_SHA"]'
           printf 'Deployed %s to https://sk.zenify.cx\n' "$revision" >> "$GITHUB_STEP_SUMMARY"
